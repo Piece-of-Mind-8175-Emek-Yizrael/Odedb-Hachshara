@@ -29,6 +29,7 @@ import edu.wpi.first.hal.FRCNetComm.tResourceType;
 import edu.wpi.first.math.controller.ArmFeedforward;
 import edu.wpi.first.hal.HAL;
 import edu.wpi.first.wpilibj.DigitalInput;
+import edu.wpi.first.wpilibj.Encoder;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.event.EventLoop;
@@ -152,6 +153,7 @@ public class Robot extends TimedRobot {
         }
         if(!foldLimitSwitch.get()){
             fold_flag = false;
+            arm_encoder.setPosition(-0.323);
         }
         if(fold_flag){
             arm.set(FOLD_SPEED + resistGravity());
