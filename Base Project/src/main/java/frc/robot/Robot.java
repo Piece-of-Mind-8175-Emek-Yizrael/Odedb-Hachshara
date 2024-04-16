@@ -88,6 +88,10 @@ public class Robot extends TimedRobot {
         SmartDashboard.putNumber("feed forward" ,resistGravity());
         SmartDashboard.putBoolean("flag" ,fold_flag);
         SmartDashboard.putBoolean("Limit Switch" ,!foldLimitSwitch.get());
+
+        if(!foldLimitSwitch.get()){
+            arm_encoder.setPosition(-0.323);
+        }
     }
 
 
