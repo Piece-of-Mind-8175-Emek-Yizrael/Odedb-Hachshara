@@ -12,10 +12,20 @@
 
 package frc.robot;
 
+import static frc.robot.Constants.IntakeConstants.INTAKE_PORT;
+import static frc.robot.Constants.IntakeConstants.INTAKE_SPEED;
+import static frc.robot.Constants.IntakeConstants.OUTAKE_SPEED;
+import static frc.robot.Constants.ControllerConstants.*;
+import static frc.robot.POM_lib.Joysticks.JoystickConstants.*;
+import com.revrobotics.CANSparkLowLevel.MotorType;
+import com.revrobotics.CANSparkMax;
+
 import edu.wpi.first.hal.FRCNetComm.tInstances;
 import edu.wpi.first.hal.FRCNetComm.tResourceType;
 import edu.wpi.first.hal.HAL;
+import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.TimedRobot;
+import edu.wpi.first.wpilibj.event.EventLoop;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 
@@ -31,7 +41,8 @@ public class Robot extends TimedRobot {
     private Command m_autonomousCommand;
 
     private RobotContainer m_robotContainer;
-
+    public CANSparkMax intake = new CANSparkMax(INTAKE_PORT, MotorType.kBrushless);
+    public Joystick controller = new Joystick(OPERATOR_PORT);
     /**
      * This function is run when the robot is first started up and should be
      * used for any initialization code.
@@ -102,6 +113,7 @@ public class Robot extends TimedRobot {
         if (m_autonomousCommand != null) {
             m_autonomousCommand.cancel();
         }
+
     }
 
     /**
@@ -109,6 +121,19 @@ public class Robot extends TimedRobot {
      */
     @Override
     public void teleopPeriodic() {
+        if(controller.getRawButtonPressed(A)){
+            intake.set(INTAKE_SPEED);
+        }
+        else if(controller.getRawButtonPressed(B)){
+            intake.set(OUTAKE_SPEED);
+        }
+        else if(controller.getRawButtonReleased(A) || controller.getRawButtonReleased(B)) {
+            intake.set(0);
+        }
+
+
+
+
     }
 
     @Override
