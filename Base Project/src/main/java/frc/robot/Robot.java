@@ -32,6 +32,7 @@ import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.event.EventLoop;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 
@@ -52,7 +53,7 @@ public class Robot extends TimedRobot {
     public CANSparkMax arm = new CANSparkMax(ARM_PORT, MotorType.kBrushless);
     private RelativeEncoder arm_encoder = arm.getEncoder();
     public ArmFeedforward armFeedforward = new ArmFeedforward(0, 0.048, 0);
-    private DigitalInput groundLimitSwitch = new DigitalInput(LIMIT_SWITCH);
+    private DigitalInput foldLimitSwitch = new DigitalInput(LIMIT_SWITCH);
     private boolean fold_flag = false;
     /**
      * This function is run when the robot is first started up and should be
@@ -81,6 +82,11 @@ public class Robot extends TimedRobot {
         // and running subsystem periodic() methods.  This must be called from the robot's periodic
         // block in order for anything in the Command-based framework to work.
         CommandScheduler.getInstance().run();
+
+        SmartDashboard.putNumber("arm encoder" ,arm_encoder.getPosition());
+        SmartDashboard.putNumber("feed forward" ,resistGravity());
+        SmartDashboard.putBoolean("flag" ,fold_flag);
+        SmartDashboard.putBoolean("Limit Switch" ,!foldLimitSwitch.get());
     }
 
 
@@ -141,17 +147,19 @@ public class Robot extends TimedRobot {
         else if(controller.getRawButtonReleased(A) || controller.getRawButtonReleased(B)) {
             intake.set(0);
         }
-        if(controller.getRawButtonPressed(X) && groundLimitSwitch.get() ){
+        if(controller.getRawButtonPressed(X)){
             fold_flag = true;
         }
-        if(!groundLimitSwitch.get()){
+        if(!foldLimitSwitch.get()){
             fold_flag = false;
         }
         if(fold_flag){
-            arm.set(FOLD_SPEED);
+            arm.set(FOLD_SPEED + resistGravity());
+        }
+        else{
+            arm.set(resistGravity());
         }
 
-        arm.set(ResistGravity());
 
     }
 
@@ -169,7 +177,7 @@ public class Robot extends TimedRobot {
     }
 
 
-    public double ResistGravity(){
+    public double resistGravity(){
         return armFeedforward.calculate(arm_encoder.getPosition(),0);   
     }
 
