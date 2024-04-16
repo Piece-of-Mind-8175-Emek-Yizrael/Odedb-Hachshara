@@ -35,7 +35,11 @@ public class Constants {
 
     public  static final class IntakeConstants {
         public static final int INTAKE_PORT = 6;
-
+        public static final int ARM_PORT = 5;
+        public static final int LIMIT_SWITCH = 3;
+        
+        
+        public static final double FOLD_SPEED = -0.3;
         public static final double INTAKE_SPEED = 0.5;
         public static final double OUTAKE_SPEED = -0.3;
     }

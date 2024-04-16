@@ -12,17 +12,23 @@
 
 package frc.robot;
 
+import static frc.robot.Constants.IntakeConstants.ARM_PORT;
+import static frc.robot.Constants.IntakeConstants.FOLD_SPEED;
 import static frc.robot.Constants.IntakeConstants.INTAKE_PORT;
 import static frc.robot.Constants.IntakeConstants.INTAKE_SPEED;
+import static frc.robot.Constants.IntakeConstants.LIMIT_SWITCH;
 import static frc.robot.Constants.IntakeConstants.OUTAKE_SPEED;
 import static frc.robot.Constants.ControllerConstants.*;
 import static frc.robot.POM_lib.Joysticks.JoystickConstants.*;
 import com.revrobotics.CANSparkLowLevel.MotorType;
 import com.revrobotics.CANSparkMax;
+import com.revrobotics.RelativeEncoder;
 
 import edu.wpi.first.hal.FRCNetComm.tInstances;
 import edu.wpi.first.hal.FRCNetComm.tResourceType;
+import edu.wpi.first.math.controller.ArmFeedforward;
 import edu.wpi.first.hal.HAL;
+import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.event.EventLoop;
@@ -43,6 +49,11 @@ public class Robot extends TimedRobot {
     private RobotContainer m_robotContainer;
     public CANSparkMax intake = new CANSparkMax(INTAKE_PORT, MotorType.kBrushless);
     public Joystick controller = new Joystick(OPERATOR_PORT);
+    public CANSparkMax arm = new CANSparkMax(ARM_PORT, MotorType.kBrushless);
+    private RelativeEncoder arm_encoder = arm.getEncoder();
+    public ArmFeedforward armFeedforward = new ArmFeedforward(0, 0.048, 0);
+    private DigitalInput groundLimitSwitch = new DigitalInput(LIMIT_SWITCH);
+    private boolean fold_flag = false;
     /**
      * This function is run when the robot is first started up and should be
      * used for any initialization code.
@@ -113,7 +124,7 @@ public class Robot extends TimedRobot {
         if (m_autonomousCommand != null) {
             m_autonomousCommand.cancel();
         }
-
+        arm_encoder.setPositionConversionFactor(1/50.0 * 16/42.0 * 2 * Math.PI);
     }
 
     /**
@@ -130,9 +141,17 @@ public class Robot extends TimedRobot {
         else if(controller.getRawButtonReleased(A) || controller.getRawButtonReleased(B)) {
             intake.set(0);
         }
+        if(controller.getRawButtonPressed(X) && groundLimitSwitch.get() ){
+            fold_flag = true;
+        }
+        if(!groundLimitSwitch.get()){
+            fold_flag = false;
+        }
+        if(fold_flag){
+            arm.set(FOLD_SPEED);
+        }
 
-
-
+        arm.set(ResistGravity());
 
     }
 
@@ -147,6 +166,11 @@ public class Robot extends TimedRobot {
     */
     @Override
     public void testPeriodic() {
+    }
+
+
+    public double ResistGravity(){
+        return armFeedforward.calculate(arm_encoder.getPosition(),0);   
     }
 
 }
