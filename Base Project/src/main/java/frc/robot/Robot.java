@@ -17,10 +17,17 @@ import static frc.robot.Constants.IntakeConstants.FOLD_SPEED;
 import static frc.robot.Constants.IntakeConstants.INTAKE_PORT;
 import static frc.robot.Constants.IntakeConstants.INTAKE_SPEED;
 import static frc.robot.Constants.IntakeConstants.LIMIT_SWITCH;
+import static frc.robot.Constants.IntakeConstants.LeftTalonSRX;
+import static frc.robot.Constants.IntakeConstants.LeftVictorSPX;
 import static frc.robot.Constants.IntakeConstants.OUTAKE_SPEED;
+import static frc.robot.Constants.IntakeConstants.RightTalonSRX;
+import static frc.robot.Constants.IntakeConstants.RightVictorSPX;
 import static frc.robot.Constants.ControllerConstants.*;
 import static frc.robot.POM_lib.Joysticks.JoystickConstants.*;
 import com.revrobotics.CANSparkLowLevel.MotorType;
+import com.ctre.phoenix.motorcontrol.InvertType;
+import com.ctre.phoenix.motorcontrol.can.WPI_TalonSRX;
+import com.ctre.phoenix.motorcontrol.can.WPI_VictorSPX;
 import com.revrobotics.CANSparkMax;
 import com.revrobotics.RelativeEncoder;
 
@@ -32,6 +39,7 @@ import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.Encoder;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.TimedRobot;
+import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 import edu.wpi.first.wpilibj.event.EventLoop;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -56,6 +64,15 @@ public class Robot extends TimedRobot {
     public ArmFeedforward armFeedforward = new ArmFeedforward(0, 0.048, 0);
     private DigitalInput foldLimitSwitch = new DigitalInput(LIMIT_SWITCH);
     private boolean fold_flag = false;
+
+
+    private WPI_TalonSRX leftMaster = new WPI_TalonSRX(LeftTalonSRX);
+    private WPI_VictorSPX leftSlave = new WPI_VictorSPX(LeftVictorSPX);
+    private WPI_TalonSRX rightMaster = new WPI_TalonSRX(RightTalonSRX);
+    private WPI_VictorSPX rightSlave = new WPI_VictorSPX(RightVictorSPX);
+
+    private DifferentialDrive differentialDrive = new DifferentialDrive(leftMaster::set, rightMaster::set);
+
     /**
      * This function is run when the robot is first started up and should be
      * used for any initialization code.
@@ -67,15 +84,16 @@ public class Robot extends TimedRobot {
         m_robotContainer = RobotContainer.getInstance();
         HAL.report(tResourceType.kResourceType_Framework, tInstances.kFramework_RobotBuilder);
         enableLiveWindowInTest(true);
+        rightMaster.setInverted(true);
+        rightSlave.setInverted(true);
+        leftMaster.setInverted(false);
+        leftSlave.setInverted(false);
+        leftSlave.follow(leftMaster);
+        rightSlave.follow(rightMaster);
+        
     }
 
-    /**
-    * This function is called every robot packet, no matter the mode. Use this for items like
-    * diagnostics that you want ran during disabled, autonomous, teleoperated and test.
-    *
-    * <p>This runs after the mode specific periodic functions, but before
-    * LiveWindow and SmartDashboard integrated updating.
-    */
+    
     @Override
     public void robotPeriodic() {
         // Runs the Scheduler.  This is responsible for polling buttons, adding newly-scheduled
@@ -163,8 +181,9 @@ public class Robot extends TimedRobot {
             arm.set(FOLD_SPEED + resistGravity());
         }
         else{
-            arm.set(resistGravity());
+            // arm.set(resistGravity());
         }
+        differentialDrive.arcadeDrive(controller.getRawAxis(LEFT_STICK_Y)/2, controller.getRawAxis(RIGHT_STICK_X));
 
 
     }
