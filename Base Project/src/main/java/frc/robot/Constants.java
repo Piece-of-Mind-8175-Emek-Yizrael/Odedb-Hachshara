@@ -37,6 +37,7 @@ public class Constants {
         public static final int INTAKE_PORT = 6;
         public static final int ARM_PORT = 5;
         public static final int LIMIT_SWITCH = 4;
+        public static final int GROUND_SWITCH = 3;
         
         public static final int LeftTalonSRX = 2;
         public static final int LeftVictorSPX = 1;
@@ -44,6 +45,7 @@ public class Constants {
         public static final int RightVictorSPX = 3;
         
         public static final double FOLD_SPEED = -0.1;
+        public static final double OPEN_SPEED = 0.075;
         public static final double INTAKE_SPEED = 0.5;
         public static final double OUTAKE_SPEED = -0.3;
     }

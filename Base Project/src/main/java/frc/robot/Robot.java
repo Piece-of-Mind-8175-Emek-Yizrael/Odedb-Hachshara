@@ -14,11 +14,13 @@ package frc.robot;
 
 import static frc.robot.Constants.IntakeConstants.ARM_PORT;
 import static frc.robot.Constants.IntakeConstants.FOLD_SPEED;
+import static frc.robot.Constants.IntakeConstants.GROUND_SWITCH;
 import static frc.robot.Constants.IntakeConstants.INTAKE_PORT;
 import static frc.robot.Constants.IntakeConstants.INTAKE_SPEED;
 import static frc.robot.Constants.IntakeConstants.LIMIT_SWITCH;
 import static frc.robot.Constants.IntakeConstants.LeftTalonSRX;
 import static frc.robot.Constants.IntakeConstants.LeftVictorSPX;
+import static frc.robot.Constants.IntakeConstants.OPEN_SPEED;
 import static frc.robot.Constants.IntakeConstants.OUTAKE_SPEED;
 import static frc.robot.Constants.IntakeConstants.RightTalonSRX;
 import static frc.robot.Constants.IntakeConstants.RightVictorSPX;
@@ -63,7 +65,9 @@ public class Robot extends TimedRobot {
     private RelativeEncoder arm_encoder = arm.getEncoder();
     public ArmFeedforward armFeedforward = new ArmFeedforward(0, 0.048, 0);
     private DigitalInput foldLimitSwitch = new DigitalInput(LIMIT_SWITCH);
+    private DigitalInput groundLimitSwitch = new DigitalInput(GROUND_SWITCH);
     private boolean fold_flag = false;
+    private boolean open_flag = false;
 
 
     private WPI_TalonSRX leftMaster = new WPI_TalonSRX(LeftTalonSRX);
@@ -106,7 +110,8 @@ public class Robot extends TimedRobot {
         SmartDashboard.putNumber("feed forward" ,resistGravity());
         SmartDashboard.putBoolean("flag" ,fold_flag);
         SmartDashboard.putBoolean("Limit Switch" ,!foldLimitSwitch.get());
-
+        SmartDashboard.putBoolean("Ground Switch" ,!groundLimitSwitch.get());
+        
         if(!foldLimitSwitch.get()){
             arm_encoder.setPosition(-0.323);
         }
@@ -177,11 +182,24 @@ public class Robot extends TimedRobot {
             fold_flag = false;
             arm_encoder.setPosition(-0.323);
         }
+        if(controller.getRawButton(Y) && groundLimitSwitch.get()){
+            open_flag = true;
+        }
+        if(!groundLimitSwitch.get()){
+            open_flag = false;
+        }
         if(fold_flag){
             arm.set(FOLD_SPEED + resistGravity());
         }
+        else if(open_flag){
+            arm.set(OPEN_SPEED + resistGravity());
+        }
+        else if(!foldLimitSwitch.get() || !groundLimitSwitch.get())
+        {
+            arm.set(0);
+        }
         else{
-            // arm.set(resistGravity());
+            arm.set(resistGravity());
         }
         differentialDrive.arcadeDrive(controller.getRawAxis(LEFT_STICK_Y)/2, controller.getRawAxis(RIGHT_STICK_X));
 
