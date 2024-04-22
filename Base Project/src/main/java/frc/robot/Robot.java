@@ -12,20 +12,38 @@
 
 package frc.robot;
 
+import static frc.robot.Constants.IntakeConstants.ARM_PORT;
+import static frc.robot.Constants.IntakeConstants.FOLD_SPEED;
+import static frc.robot.Constants.IntakeConstants.GROUND_SWITCH;
 import static frc.robot.Constants.IntakeConstants.INTAKE_PORT;
 import static frc.robot.Constants.IntakeConstants.INTAKE_SPEED;
+import static frc.robot.Constants.IntakeConstants.LIMIT_SWITCH;
+import static frc.robot.Constants.IntakeConstants.LeftTalonSRX;
+import static frc.robot.Constants.IntakeConstants.LeftVictorSPX;
+import static frc.robot.Constants.IntakeConstants.OPEN_SPEED;
 import static frc.robot.Constants.IntakeConstants.OUTAKE_SPEED;
+import static frc.robot.Constants.IntakeConstants.RightTalonSRX;
+import static frc.robot.Constants.IntakeConstants.RightVictorSPX;
 import static frc.robot.Constants.ControllerConstants.*;
 import static frc.robot.POM_lib.Joysticks.JoystickConstants.*;
 import com.revrobotics.CANSparkLowLevel.MotorType;
+import com.ctre.phoenix.motorcontrol.InvertType;
+import com.ctre.phoenix.motorcontrol.can.WPI_TalonSRX;
+import com.ctre.phoenix.motorcontrol.can.WPI_VictorSPX;
 import com.revrobotics.CANSparkMax;
+import com.revrobotics.RelativeEncoder;
 
 import edu.wpi.first.hal.FRCNetComm.tInstances;
 import edu.wpi.first.hal.FRCNetComm.tResourceType;
+import edu.wpi.first.math.controller.ArmFeedforward;
 import edu.wpi.first.hal.HAL;
+import edu.wpi.first.wpilibj.DigitalInput;
+import edu.wpi.first.wpilibj.Encoder;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.TimedRobot;
+import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 import edu.wpi.first.wpilibj.event.EventLoop;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 
@@ -43,6 +61,22 @@ public class Robot extends TimedRobot {
     private RobotContainer m_robotContainer;
     public CANSparkMax intake = new CANSparkMax(INTAKE_PORT, MotorType.kBrushless);
     public Joystick controller = new Joystick(OPERATOR_PORT);
+    public CANSparkMax arm = new CANSparkMax(ARM_PORT, MotorType.kBrushless);
+    private RelativeEncoder arm_encoder = arm.getEncoder();
+    public ArmFeedforward armFeedforward = new ArmFeedforward(0, 0.048, 0);
+    private DigitalInput foldLimitSwitch = new DigitalInput(LIMIT_SWITCH);
+    private DigitalInput groundLimitSwitch = new DigitalInput(GROUND_SWITCH);
+    private boolean fold_flag = false;
+    private boolean open_flag = false;
+
+
+    private WPI_TalonSRX leftMaster = new WPI_TalonSRX(LeftTalonSRX);
+    private WPI_VictorSPX leftSlave = new WPI_VictorSPX(LeftVictorSPX);
+    private WPI_TalonSRX rightMaster = new WPI_TalonSRX(RightTalonSRX);
+    private WPI_VictorSPX rightSlave = new WPI_VictorSPX(RightVictorSPX);
+
+    private DifferentialDrive differentialDrive = new DifferentialDrive(leftMaster::set, rightMaster::set);
+
     /**
      * This function is run when the robot is first started up and should be
      * used for any initialization code.
@@ -54,15 +88,16 @@ public class Robot extends TimedRobot {
         m_robotContainer = RobotContainer.getInstance();
         HAL.report(tResourceType.kResourceType_Framework, tInstances.kFramework_RobotBuilder);
         enableLiveWindowInTest(true);
+        rightMaster.setInverted(true);
+        rightSlave.setInverted(true);
+        leftMaster.setInverted(false);
+        leftSlave.setInverted(false);
+        leftSlave.follow(leftMaster);
+        rightSlave.follow(rightMaster);
+        
     }
 
-    /**
-    * This function is called every robot packet, no matter the mode. Use this for items like
-    * diagnostics that you want ran during disabled, autonomous, teleoperated and test.
-    *
-    * <p>This runs after the mode specific periodic functions, but before
-    * LiveWindow and SmartDashboard integrated updating.
-    */
+    
     @Override
     public void robotPeriodic() {
         // Runs the Scheduler.  This is responsible for polling buttons, adding newly-scheduled
@@ -70,6 +105,16 @@ public class Robot extends TimedRobot {
         // and running subsystem periodic() methods.  This must be called from the robot's periodic
         // block in order for anything in the Command-based framework to work.
         CommandScheduler.getInstance().run();
+
+        SmartDashboard.putNumber("arm encoder" ,arm_encoder.getPosition());
+        SmartDashboard.putNumber("feed forward" ,resistGravity());
+        SmartDashboard.putBoolean("flag" ,fold_flag);
+        SmartDashboard.putBoolean("Limit Switch" ,!foldLimitSwitch.get());
+        SmartDashboard.putBoolean("Ground Switch" ,!groundLimitSwitch.get());
+        
+        if(!foldLimitSwitch.get()){
+            arm_encoder.setPosition(-0.323);
+        }
     }
 
 
@@ -113,7 +158,7 @@ public class Robot extends TimedRobot {
         if (m_autonomousCommand != null) {
             m_autonomousCommand.cancel();
         }
-
+        arm_encoder.setPositionConversionFactor(1/50.0 * 16/42.0 * 2 * Math.PI);
     }
 
     /**
@@ -130,8 +175,33 @@ public class Robot extends TimedRobot {
         else if(controller.getRawButtonReleased(A) || controller.getRawButtonReleased(B)) {
             intake.set(0);
         }
-
-
+        if(controller.getRawButtonPressed(X)){
+            fold_flag = true;
+        }
+        if(!foldLimitSwitch.get()){
+            fold_flag = false;
+            arm_encoder.setPosition(-0.323);
+        }
+        if(controller.getRawButton(Y) && groundLimitSwitch.get()){
+            open_flag = true;
+        }
+        if(!groundLimitSwitch.get()){
+            open_flag = false;
+        }
+        if(fold_flag){
+            arm.set(FOLD_SPEED + resistGravity());
+        }
+        else if(open_flag){
+            arm.set(OPEN_SPEED + resistGravity());
+        }
+        else if(!foldLimitSwitch.get() || !groundLimitSwitch.get())
+        {
+            arm.set(0);
+        }
+        else{
+            arm.set(resistGravity());
+        }
+        differentialDrive.arcadeDrive(controller.getRawAxis(LEFT_STICK_Y)/2, controller.getRawAxis(RIGHT_STICK_X));
 
 
     }
@@ -147,6 +217,11 @@ public class Robot extends TimedRobot {
     */
     @Override
     public void testPeriodic() {
+    }
+
+
+    public double resistGravity(){
+        return armFeedforward.calculate(arm_encoder.getPosition(),0);   
     }
 
 }
