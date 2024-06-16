@@ -30,17 +30,20 @@ import com.revrobotics.CANSparkLowLevel.MotorType;
 import com.ctre.phoenix.motorcontrol.InvertType;
 import com.ctre.phoenix.motorcontrol.can.WPI_TalonSRX;
 import com.ctre.phoenix.motorcontrol.can.WPI_VictorSPX;
+import com.ctre.phoenix.sensors.PigeonIMU;
 import com.revrobotics.CANSparkMax;
 import com.revrobotics.RelativeEncoder;
 
 import edu.wpi.first.hal.FRCNetComm.tInstances;
 import edu.wpi.first.hal.FRCNetComm.tResourceType;
 import edu.wpi.first.math.controller.ArmFeedforward;
+import edu.wpi.first.units.Unit;
 import edu.wpi.first.hal.HAL;
 import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.Encoder;
 import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.TimedRobot;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 import edu.wpi.first.wpilibj.event.EventLoop;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -60,22 +63,17 @@ public class Robot extends TimedRobot {
 
     private RobotContainer m_robotContainer;
     public CANSparkMax intake = new CANSparkMax(INTAKE_PORT, MotorType.kBrushless);
-    public Joystick controller = new Joystick(OPERATOR_PORT);
-    public CANSparkMax arm = new CANSparkMax(ARM_PORT, MotorType.kBrushless);
-    private RelativeEncoder arm_encoder = arm.getEncoder();
-    public ArmFeedforward armFeedforward = new ArmFeedforward(0, 0.048, 0);
-    private DigitalInput foldLimitSwitch = new DigitalInput(LIMIT_SWITCH);
-    private DigitalInput groundLimitSwitch = new DigitalInput(GROUND_SWITCH);
-    private boolean fold_flag = false;
-    private boolean open_flag = false;
+    
 
 
-    private WPI_TalonSRX leftMaster = new WPI_TalonSRX(LeftTalonSRX);
-    private WPI_VictorSPX leftSlave = new WPI_VictorSPX(LeftVictorSPX);
-    private WPI_TalonSRX rightMaster = new WPI_TalonSRX(RightTalonSRX);
-    private WPI_VictorSPX rightSlave = new WPI_VictorSPX(RightVictorSPX);
 
-    private DifferentialDrive differentialDrive = new DifferentialDrive(leftMaster::set, rightMaster::set);
+    private Timer timer = new Timer();
+    private PigeonIMU yona = new PigeonIMU(7);
+    private double lastyaw = yona.getYaw();
+
+
+
+
 
     /**
      * This function is run when the robot is first started up and should be
@@ -88,12 +86,7 @@ public class Robot extends TimedRobot {
         m_robotContainer = RobotContainer.getInstance();
         HAL.report(tResourceType.kResourceType_Framework, tInstances.kFramework_RobotBuilder);
         enableLiveWindowInTest(true);
-        rightMaster.setInverted(true);
-        rightSlave.setInverted(true);
-        leftMaster.setInverted(false);
-        leftSlave.setInverted(false);
-        leftSlave.follow(leftMaster);
-        rightSlave.follow(rightMaster);
+
         
     }
 
@@ -106,15 +99,7 @@ public class Robot extends TimedRobot {
         // block in order for anything in the Command-based framework to work.
         CommandScheduler.getInstance().run();
 
-        SmartDashboard.putNumber("arm encoder" ,arm_encoder.getPosition());
-        SmartDashboard.putNumber("feed forward" ,resistGravity());
-        SmartDashboard.putBoolean("flag" ,fold_flag);
-        SmartDashboard.putBoolean("Limit Switch" ,!foldLimitSwitch.get());
-        SmartDashboard.putBoolean("Ground Switch" ,!groundLimitSwitch.get());
-        
-        if(!foldLimitSwitch.get()){
-            arm_encoder.setPosition(-0.323);
-        }
+
     }
 
 
@@ -140,6 +125,9 @@ public class Robot extends TimedRobot {
         if (m_autonomousCommand != null) {
             m_autonomousCommand.schedule();
         }
+        timer.restart();
+
+        
     }
 
     /**
@@ -147,6 +135,48 @@ public class Robot extends TimedRobot {
     */
     @Override
     public void autonomousPeriodic() {
+        // if(timer.get() < 2 && groundLimitSwitch.get()){
+        //     // differentialDrive.arcadeDrive(0.15,0, false);
+        // }
+        // else if(timer.get() < 2  && !groundLimitSwitch.get()){
+        //     intake.set(INTAKE_SPEED + resistGravity());
+        // }
+        // else if(timer.get() > 2 && !groundLimitSwitch.get()){
+        //     fold_flag = true;
+        //     intake.set(0);
+        // }
+        // else{
+            
+        //     open_flag = true;
+        // }
+        // if(open_flag && groundLimitSwitch.get()){
+        //     arm.set(OPEN_SPEED + resistGravity());
+        // }
+       
+        // if(open_flag && !groundLimitSwitch.get()){            
+        //     open_flag = false;
+        //     timer.restart();
+            
+        // }
+        
+        // if(fold_flag && foldLimitSwitch.get()){
+        //     arm.set(FOLD_SPEED + resistGravity());
+        // }
+        // if(!foldLimitSwitch.get()){
+        //     arm.set(0);
+        // }
+
+        
+        
+
+        
+
+
+         
+
+
+  
+        
     }
 
     @Override
@@ -158,7 +188,7 @@ public class Robot extends TimedRobot {
         if (m_autonomousCommand != null) {
             m_autonomousCommand.cancel();
         }
-        arm_encoder.setPositionConversionFactor(1/50.0 * 16/42.0 * 2 * Math.PI);
+   
     }
 
     /**
@@ -166,42 +196,41 @@ public class Robot extends TimedRobot {
      */
     @Override
     public void teleopPeriodic() {
-        if(controller.getRawButtonPressed(A)){
-            intake.set(INTAKE_SPEED);
-        }
-        else if(controller.getRawButtonPressed(B)){
-            intake.set(OUTAKE_SPEED);
-        }
-        else if(controller.getRawButtonReleased(A) || controller.getRawButtonReleased(B)) {
-            intake.set(0);
-        }
-        if(controller.getRawButtonPressed(X)){
-            fold_flag = true;
-        }
-        if(!foldLimitSwitch.get()){
-            fold_flag = false;
-            arm_encoder.setPosition(-0.323);
-        }
-        if(controller.getRawButton(Y) && groundLimitSwitch.get()){
-            open_flag = true;
-        }
-        if(!groundLimitSwitch.get()){
-            open_flag = false;
-        }
-        if(fold_flag){
-            arm.set(FOLD_SPEED + resistGravity());
-        }
-        else if(open_flag){
-            arm.set(OPEN_SPEED + resistGravity());
-        }
-        else if(!foldLimitSwitch.get() || !groundLimitSwitch.get())
-        {
-            arm.set(0);
-        }
-        else{
-            arm.set(resistGravity());
-        }
-        differentialDrive.arcadeDrive(controller.getRawAxis(LEFT_STICK_Y)/2, controller.getRawAxis(RIGHT_STICK_X));
+        // if(controller.getRawButtonPressed(A)){
+        //     intake.set(INTAKE_SPEED);
+        // }
+        // else if(controller.getRawButtonPressed(B)){
+        //     intake.set(OUTAKE_SPEED);
+        // }
+        // else if(controller.getRawButtonReleased(A) || controller.getRawButtonReleased(B)) {
+        //     intake.set(0);
+        // }
+        // if(controller.getRawButtonPressed(X)){
+        //     fold_flag = true;
+        // }
+        // if(!foldLimitSwitch.get()){
+        //     fold_flag = false;
+        //     arm_encoder.setPosition(-0.323);
+        // }
+        // if(controller.getRawButton(Y) && groundLimitSwitch.get()){
+        //     open_flag = true;
+        // }
+        // if(!groundLimitSwitch.get()){
+        //     open_flag = false;
+        // }
+        // if(fold_flag){
+        //     arm.set(FOLD_SPEED + resistGravity());
+        // }
+        // else if(open_flag){
+        //     arm.set(OPEN_SPEED + resistGravity());
+        // }
+        // else if(!foldLimitSwitch.get() || !groundLimitSwitch.get())
+        // {
+        //     arm.set(0);
+        // }
+        // else{
+        //     arm.set(resistGravity());
+        // }
 
 
     }
@@ -220,8 +249,7 @@ public class Robot extends TimedRobot {
     }
 
 
-    public double resistGravity(){
-        return armFeedforward.calculate(arm_encoder.getPosition(),0);   
-    }
+
+
 
 }
